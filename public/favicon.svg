@@ -1,0 +1,21 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#EF8354;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#006494;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded Background -->
+  <rect width="32" height="32" rx="8" fill="url(#grad)" />
+  
+  <!-- Trophy Icon (White, Centered) -->
+  <g transform="translate(4, 4)">
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M4 22h16" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
