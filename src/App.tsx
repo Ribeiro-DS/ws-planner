@@ -56,12 +56,6 @@ interface StudySession {
   notes?: string;
 }
 
-interface StudyFocusData {
-  quote: string;
-  tipTitle: string;
-  tipBody: string;
-}
-
 interface ErrorLog {
   typeA: number; 
   typeB: number; 
@@ -1252,7 +1246,6 @@ const AdaptiveTrainingModule = ({ t, subjects, sessions, telemetrySessions, acti
 
   const todayStr = getLocalToday();
   const todayMissions = activeMissions.filter((m: any) => m.date === todayStr);
-  const hasPendingMissions = todayMissions.some((m: any) => m.status === 'Pending');
   const allCompleted = todayMissions.length > 0 && todayMissions.every((m: any) => m.status === 'Completed');
   
   const todayScheduledSessions = useMemo(() => {
