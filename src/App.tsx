@@ -96,8 +96,6 @@ const getLocalToday = (): string => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
 };
 
-const SPACING_STEPS = [1, 7, 15, 30, 60, 90];
-
 // Pure function for FSRS Spaced Repetition Logic
 const calculateNextFSRSInterval = (currentInterval: number, currentEF: number, rating: ReviewRating): { nextInterval: number, nextEF: number } => {
   let nextInterval = 1;
