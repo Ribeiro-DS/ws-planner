@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React from 'react';
 import { 
   BookOpen, Calendar as CalendarIcon, CheckCircle, Clock, BarChart2, Plus, 
   Trash2, ChevronRight, ChevronDown, Target, Moon, Sun, AlertCircle, Trophy, 
@@ -195,7 +195,7 @@ export const getDueReviews = (subjects: Subject[], telemetryIndex: Record<string
 
 // Custom Hook: Debounced LocalStorage
 function useLocalObject<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-  const [storedValue, setStoredValue] = useState<T>(() => {
+  const [storedValue, setStoredValue] = React.useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
@@ -205,7 +205,7 @@ function useLocalObject<T>(key: string, initialValue: T): [T, React.Dispatch<Rea
     }
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     const handler = setTimeout(() => {
       window.localStorage.setItem(key, JSON.stringify(storedValue));
     }, 300);
@@ -475,23 +475,23 @@ interface DashboardProps extends BaseModuleProps {
 const Dashboard = ({ t, subjects, sessions, telemetryIndex, telemetrySessions, activeMissions, setActiveTab }: DashboardProps) => {
   const todayStr = getLocalToday();
 
-  const dueReviewsCount = useMemo(() => {
+  const dueReviewsCount = React.useMemo(() => {
     return getDueReviews(subjects, telemetryIndex, todayStr).length;
   }, [subjects, telemetryIndex, todayStr]);
 
-  const todayMissions = useMemo(() => activeMissions.filter(m => m.date === todayStr), [activeMissions, todayStr]);
+  const todayMissions = React.useMemo(() => activeMissions.filter(m => m.date === todayStr), [activeMissions, todayStr]);
   const missionsCompleted = todayMissions.filter(m => m.status === 'Completed').length;
   const missionsTotal = todayMissions.length;
 
-  const todaySessions = useMemo(() => {
+  const todaySessions = React.useMemo(() => {
     return sessions.filter(s => s.date === todayStr).sort((a,b) => a.startTime.localeCompare(b.startTime));
   }, [sessions, todayStr]);
 
-  const sevenDaysAgo = useMemo(() => {
+  const sevenDaysAgo = React.useMemo(() => {
     const d = new Date(); d.setDate(d.getDate() - 7); return d;
   }, []);
 
-  const eliteMetrics = useMemo(() => {
+  const eliteMetrics = React.useMemo(() => {
     const recentTelemetry = telemetrySessions.filter(s => new Date(s.date) >= sevenDaysAgo);
     let tQ = 0, tC = 0, tTime = 0;
     recentTelemetry.forEach(s => { tQ += s.totalQuestions; tC += s.correctAnswers; tTime += s.timeMinutes; });
@@ -506,7 +506,7 @@ const Dashboard = ({ t, subjects, sessions, telemetryIndex, telemetrySessions, a
     return { acc, pace, curveAProgress };
   }, [telemetrySessions, sevenDaysAgo, subjects]);
 
-  const bottlenecks = useMemo(() => {
+  const bottlenecks = React.useMemo(() => {
     const stats: Record<string, { q: number, c: number, subName: string, topName: string, incidence: IncidenceLevel }> = {};
     telemetrySessions.forEach(s => {
        if (!s.topicId) return;
@@ -532,7 +532,7 @@ const Dashboard = ({ t, subjects, sessions, telemetryIndex, telemetrySessions, a
       .slice(0, 3);
   }, [telemetrySessions, subjects]);
 
-  const smartFocus = useMemo(() => {
+  const smartFocus = React.useMemo(() => {
     if (!telemetrySessions || telemetrySessions.length === 0) {
       return { quote: t.sfNoDataQuote, tipTitle: t.sfNoDataTitle, tipBody: t.sfNoDataBody, color: "text-gray-500 dark:text-gray-400", bg: "bg-gray-50 dark:bg-zinc-800/50", border: "border-gray-200 dark:border-zinc-700" };
     }
@@ -692,16 +692,16 @@ interface SyllabusManagerProps extends BaseModuleProps {
 }
 
 const SyllabusManager = ({ t, subjects, setSubjects }: SyllabusManagerProps) => {
-  const [newSubjectName, setNewSubjectName] = useState('');
-  const [newSubjectWeight, setNewSubjectWeight] = useState<SubjectWeight>('Medium');
-  const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
+  const [newSubjectName, setNewSubjectName] = React.useState('');
+  const [newSubjectWeight, setNewSubjectWeight] = React.useState<SubjectWeight>('Medium');
+  const [expandedSubject, setExpandedSubject] = React.useState<string | null>(null);
   
-  const [newTopicNames, setNewTopicNames] = useState<{[key: string]: string}>({});
-  const [newTopicIncidences, setNewTopicIncidences] = useState<{[key: string]: IncidenceLevel}>({});
+  const [newTopicNames, setNewTopicNames] = React.useState<{[key: string]: string}>({});
+  const [newTopicIncidences, setNewTopicIncidences] = React.useState<{[key: string]: IncidenceLevel}>({});
 
-  const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
-  const [editSubjectName, setEditSubjectName] = useState('');
-  const [editSubjectWeight, setEditSubjectWeight] = useState<SubjectWeight>('Medium');
+  const [editingSubjectId, setEditingSubjectId] = React.useState<string | null>(null);
+  const [editSubjectName, setEditSubjectName] = React.useState('');
+  const [editSubjectWeight, setEditSubjectWeight] = React.useState<SubjectWeight>('Medium');
 
   const addSubject = () => {
     if (!newSubjectName.trim()) return;
@@ -911,14 +911,14 @@ interface CalendarPlannerProps extends BaseModuleProps {
 }
 
 const CalendarPlanner = ({ t, language, subjects, sessions, setSessions }: CalendarPlannerProps) => {
-  const [selectedDate, setSelectedDate] = useState(getLocalToday());
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState('');
-  const [startTime, setStartTime] = useState('09:00');
-  const [duration, setDuration] = useState('60');
-  const [error, setError] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = React.useState(getLocalToday());
+  const [selectedSubject, setSelectedSubject] = React.useState('');
+  const [selectedTopic, setSelectedTopic] = React.useState('');
+  const [startTime, setStartTime] = React.useState('09:00');
+  const [duration, setDuration] = React.useState('60');
+  const [error, setError] = React.useState<string | null>(null);
 
-  const availableTopics = useMemo(() => {
+  const availableTopics = React.useMemo(() => {
       const sub = subjects.find(s => s.id === selectedSubject);
       return sub ? sub.topics.filter(t => !t.isCompleted) : [];
   }, [selectedSubject, subjects]);
@@ -950,7 +950,7 @@ const CalendarPlanner = ({ t, language, subjects, sessions, setSessions }: Calen
       setSelectedTopic('');
   };
 
-  const daysSessions = useMemo(() => {
+  const daysSessions = React.useMemo(() => {
     return sessions
       .filter(s => s.date === selectedDate)
       .sort((a,b) => a.startTime.localeCompare(b.startTime));
@@ -1049,26 +1049,26 @@ interface TelemetryModuleProps extends BaseModuleProps {
 }
 
 const TelemetryModule = ({ t, subjects, telemetrySessions, setTelemetrySessions, activeMissions, setActiveMissions, telemetryPrefill, setTelemetryPrefill }: TelemetryModuleProps) => {
-  const [viewMode, setViewMode] = useState<'dashboard' | 'add'>('dashboard');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [errorMismatch, setErrorMismatch] = useState<string | null>(null);
+  const [viewMode, setViewMode] = React.useState<'dashboard' | 'add'>('dashboard');
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [errorMismatch, setErrorMismatch] = React.useState<string | null>(null);
 
   const todayStr = getLocalToday();
-  const todayPendingMissions = useMemo(() => activeMissions.filter(m => m.status === 'Pending' && m.date === todayStr), [activeMissions, todayStr]);
+  const todayPendingMissions = React.useMemo(() => activeMissions.filter(m => m.status === 'Pending' && m.date === todayStr), [activeMissions, todayStr]);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = React.useState({
     date: todayStr, subjectId: '', topicId: '', totalQs: '', correct: '', time: '',
     difficulty: 'Medium' as DifficultyLevel, fatigue: false, block: false,
     errA: 0, errB: 0, errC: 0, errD: 0, errE: 0, errF: 0, errG: 0, errH: 0, notes: ''
   });
 
-  const resetForm = useCallback(() => {
+  const resetForm = React.useCallback(() => {
     setForm({ date: todayStr, subjectId: '', topicId: '', totalQs: '', correct: '', time: '', difficulty: 'Medium', fatigue: false, block: false, errA: 0, errB: 0, errC: 0, errD: 0, errE: 0, errF: 0, errG: 0, errH: 0, notes: '' });
     setEditingId(null);
     setErrorMismatch(null);
   }, [todayStr]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (telemetryPrefill) {
       if (telemetryPrefill.subjectId === 'MIXED') {
          setForm(prev => ({ ...prev, subjectId: '', topicId: '', date: todayStr }));
@@ -1120,12 +1120,12 @@ const TelemetryModule = ({ t, subjects, telemetrySessions, setTelemetrySessions,
     setForm({ ...form, subjectId: newSubId, topicId: '', totalQs: newTotalQs }); 
   };
 
-  const availableTopics = useMemo(() => {
+  const availableTopics = React.useMemo(() => {
     const sub = subjects.find(s => s.id === form.subjectId);
     return sub ? sub.topics : [];
   }, [form.subjectId, subjects]);
 
-  const activeMissionForForm = useMemo(() => {
+  const activeMissionForForm = React.useMemo(() => {
     return todayPendingMissions.find(m => {
       if (m.subjectId === 'MIXED') return m.mixedTargets?.includes(form.subjectId);
       return m.subjectId === form.subjectId && (!m.topicId || m.topicId === form.topicId);
@@ -1217,7 +1217,7 @@ const TelemetryModule = ({ t, subjects, telemetrySessions, setTelemetrySessions,
     updateMissionState(updatedTelemetry);
   };
 
-  const telemetryStats = useMemo(() => {
+  const telemetryStats = React.useMemo(() => {
     if (telemetrySessions.length === 0) return { accuracy: 0, avgTime: 0, typeBRate: 0, fatigueRate: 0, typeARate: 0, typeDRate: 0 };
     let totalQ = 0, totalC = 0, totalTime = 0, totalErrB = 0, totalErrA = 0, totalErrD = 0, fatigueCount = 0, sumTotalErrors = 0;
     telemetrySessions.forEach(s => {
@@ -1236,7 +1236,7 @@ const TelemetryModule = ({ t, subjects, telemetrySessions, setTelemetrySessions,
     };
   }, [telemetrySessions]);
 
-  const insights = useMemo(() => {
+  const insights = React.useMemo(() => {
     if (telemetrySessions.length < 2) return [];
     const recs = [];
     if (telemetryStats.typeBRate > 20) recs.push({ title: t.insTypeBTitle, desc: t.insTypeBDesc, action: t.insTypeBAction, color: "border-amber-500", bg: "bg-amber-50 dark:bg-amber-500/10", iconColor: "text-amber-500" });
@@ -1434,21 +1434,21 @@ interface AdaptiveTrainingModuleProps extends BaseModuleProps {
 }
 
 const AdaptiveTrainingModule = ({ t, subjects, sessions, telemetryIndex, telemetrySessions, activeMissions, setActiveMissions, setGoToTelemetry, setGoToCalendar }: AdaptiveTrainingModuleProps) => {
-  const [dailyCapacity, setDailyCapacity] = useState<number>(() => parseInt(localStorage.getItem('fiscal_daily_capacity') || '100'));
-  const [distributionMode, setDistributionMode] = useState<'equal' | 'weighted' | 'interleaved'>(() => {
+  const [dailyCapacity, setDailyCapacity] = React.useState<number>(() => parseInt(localStorage.getItem('fiscal_daily_capacity') || '100'));
+  const [distributionMode, setDistributionMode] = React.useState<'equal' | 'weighted' | 'interleaved'>(() => {
     const saved = localStorage.getItem('fiscal_dist_mode');
     return (saved === 'equal' || saved === 'weighted' || saved === 'interleaved') ? saved : 'equal';
   });
-  const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
+  const [showAbandonConfirm, setShowAbandonConfirm] = React.useState(false);
 
   const todayStr = getLocalToday();
-  const todayMissions = useMemo(() => activeMissions.filter(m => m.date === todayStr), [activeMissions, todayStr]);
+  const todayMissions = React.useMemo(() => activeMissions.filter(m => m.date === todayStr), [activeMissions, todayStr]);
   const allCompleted = todayMissions.length > 0 && todayMissions.every(m => m.status === 'Completed');
   
-  const todayScheduledSessions = useMemo(() => sessions.filter(s => s.date === todayStr && !s.completed), [sessions, todayStr]);
+  const todayScheduledSessions = React.useMemo(() => sessions.filter(s => s.date === todayStr && !s.completed), [sessions, todayStr]);
 
-  useEffect(() => { localStorage.setItem('fiscal_daily_capacity', String(dailyCapacity)); }, [dailyCapacity]);
-  useEffect(() => { localStorage.setItem('fiscal_dist_mode', distributionMode); }, [distributionMode]);
+  React.useEffect(() => { localStorage.setItem('fiscal_daily_capacity', String(dailyCapacity)); }, [dailyCapacity]);
+  React.useEffect(() => { localStorage.setItem('fiscal_dist_mode', distributionMode); }, [distributionMode]);
 
   const generateMission = () => {
     if (subjects.length === 0 || todayScheduledSessions.length === 0) return;
@@ -1732,13 +1732,13 @@ interface ReviewModuleProps extends BaseModuleProps {
 
 const ReviewModule = ({ t, subjects, setSubjects, telemetryIndex, setGoToTelemetry }: ReviewModuleProps) => {
   const todayStr = getLocalToday();
-  const [ratingMode, setRatingMode] = useState<string | null>(null);
+  const [ratingMode, setRatingMode] = React.useState<string | null>(null);
 
-  const dueReviews = useMemo(() => {
+  const dueReviews = React.useMemo(() => {
     return getDueReviews(subjects, telemetryIndex, todayStr);
   }, [subjects, telemetryIndex, todayStr]);
 
-  const submitReview = useCallback((subjectId: string, topicId: string, rating: ReviewRating) => {
+  const submitReview = React.useCallback((subjectId: string, topicId: string, rating: ReviewRating) => {
     const todayLocal = getLocalToday();
     setSubjects(prev => prev.map(sub => {
       if (sub.id !== subjectId) return sub;
@@ -1845,31 +1845,31 @@ const ReviewModule = ({ t, subjects, setSubjects, telemetryIndex, setGoToTelemet
 // ============================================================================
 
 export default function ElantariApp() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'syllabus' | 'calendar' | 'telemetry' | 'training' | 'reviews'>('dashboard');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [telemetryPrefill, setTelemetryPrefill] = useState<{subjectId: string, topicId?: string} | null>(null);
+  const [activeTab, setActiveTab] = React.useState<'dashboard' | 'syllabus' | 'calendar' | 'telemetry' | 'training' | 'reviews'>('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [telemetryPrefill, setTelemetryPrefill] = React.useState<{subjectId: string, topicId?: string} | null>(null);
   
   // Custom Hook Storage
-  const [language, setLanguage] = useState<'en' | 'pt'>(() => (localStorage.getItem('fiscal_lang') as 'en' | 'pt') || 'pt');
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fiscal_theme') === 'dark');
+  const [language, setLanguage] = React.useState<'en' | 'pt'>(() => (localStorage.getItem('fiscal_lang') as 'en' | 'pt') || 'pt');
+  const [darkMode, setDarkMode] = React.useState(() => localStorage.getItem('fiscal_theme') === 'dark');
   const [subjects, setSubjects] = useLocalObject<Subject[]>('fiscal_subjects', INITIAL_SUBJECTS);
   const [sessions, setSessions] = useLocalObject<StudySession[]>('fiscal_sessions', []);
   const [telemetrySessions, setTelemetrySessions] = useLocalObject<TelemetrySession[]>('fiscal_telemetry', []);
   const [activeMissions, setActiveMissions] = useLocalObject<TrainingMission[]>('fiscal_missions', []);
 
   // Centralized O(1) Index for Performance
-  const telemetryIndex = useMemo(() => createTelemetryIndex(telemetrySessions), [telemetrySessions]);
+  const telemetryIndex = React.useMemo(() => createTelemetryIndex(telemetrySessions), [telemetrySessions]);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const t = TRANSLATIONS[language];
 
-  useEffect(() => { localStorage.setItem('fiscal_theme', darkMode ? 'dark' : 'light'); }, [darkMode]);
-  useEffect(() => { localStorage.setItem('fiscal_lang', language); }, [language]);
+  React.useEffect(() => { localStorage.setItem('fiscal_theme', darkMode ? 'dark' : 'light'); }, [darkMode]);
+  React.useEffect(() => { localStorage.setItem('fiscal_lang', language); }, [language]);
 
-  const toggleTheme = useCallback(() => setDarkMode(prev => !prev), []);
-  const toggleLanguage = useCallback(() => setLanguage(prev => prev === 'en' ? 'pt' : 'en'), []);
+  const toggleTheme = React.useCallback(() => setDarkMode(prev => !prev), []);
+  const toggleLanguage = React.useCallback(() => setLanguage(prev => prev === 'en' ? 'pt' : 'en'), []);
 
-  const exportData = useCallback(() => {
+  const exportData = React.useCallback(() => {
     const data = { version: 3, timestamp: new Date().toISOString(), subjects, sessions, telemetrySessions, activeMissions, language, darkMode };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1879,7 +1879,7 @@ export default function ElantariApp() {
     URL.revokeObjectURL(url);
   }, [subjects, sessions, telemetrySessions, activeMissions, language, darkMode]);
 
-  const importData = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const importData = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -1908,12 +1908,17 @@ export default function ElantariApp() {
         <header className="sticky top-0 z-50 bg-white/80 dark:bg-[#1C1C1E]/80 backdrop-blur-xl border-b border-gray-200/80 dark:border-zinc-800 transition-colors duration-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
-              <div className="flex items-center gap-3">
+              
+              <button 
+                onClick={() => setActiveTab('dashboard')}
+                className="flex items-center gap-3 hover:opacity-80 transition-opacity focus:outline-none cursor-pointer"
+                title={t.dashboard}
+              >
                 <div className="w-8 h-8 bg-gradient-to-tr from-indigo-600 to-purple-500 rounded-lg flex items-center justify-center shadow-sm">
                   <ChevronsUp className="w-5 h-5 text-white" />
                 </div>
                 <span className="font-bold text-xl tracking-tight text-gray-900 dark:text-white hidden sm:inline">Elantari</span>
-              </div>
+              </button>
               
               <div className="hidden lg:flex items-center gap-1.5">
                 <nav className="flex space-x-1 mr-3">
