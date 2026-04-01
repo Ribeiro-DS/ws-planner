@@ -7,14 +7,20 @@ import {
 } from 'lucide-react';
 
 // ============================================================================
-// TYPES & INTERFACES
+// 1. TYPES & INTERFACES (Strict Typing)
 // ============================================================================
+
+export type IncidenceLevel = 'High' | 'Medium' | 'Low';
+export type SubjectWeight = 'High' | 'Medium' | 'Low';
+export type DifficultyLevel = 'Easy' | 'Medium' | 'Hard';
+export type ReviewRating = 'again' | 'hard' | 'good' | 'easy';
+export type MissionMode = 'Execution' | 'Interpretation' | 'Speed' | 'Endurance' | 'Content' | 'Interleaved';
 
 export interface Topic {
   id: string;
   name: string;
   isCompleted: boolean;
-  incidence?: 'High' | 'Medium' | 'Low';
+  incidence?: IncidenceLevel;
   completedAt?: string;
   lastReviewedAt?: string;
   reviewInterval?: number;
@@ -25,7 +31,7 @@ export interface Subject {
   id: string;
   name: string;
   color: string;
-  weight?: 'High' | 'Medium' | 'Low';
+  weight?: SubjectWeight;
   topics: Topic[];
 }
 
@@ -53,7 +59,7 @@ export interface TelemetrySession {
   totalQuestions: number;
   correctAnswers: number;
   timeMinutes: number;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
+  difficulty: DifficultyLevel;
   fatigue: boolean;
   cognitiveBlock: boolean;
   errors: ErrorLog;
@@ -65,24 +71,55 @@ export interface TrainingMission {
   date: string;
   subjectId: string | 'MIXED'; 
   topicId?: string; 
-  mode: 'Execution' | 'Interpretation' | 'Speed' | 'Endurance' | 'Content' | 'Interleaved';
+  mode: MissionMode;
   volume: number;
   status: 'Pending' | 'Completed';
   priorityScore: number;
   mixedTargets?: string[];
 }
 
+export interface DueReview {
+  sub: Subject;
+  topic: Topic;
+  health: 'good' | 'warning' | 'critical';
+  healthScore: number;
+  reviewType: 'telemetry' | 'spaced';
+  interval: number;
+}
+
 // ============================================================================
-// CONSTANTS & UTILS
+// 2. UTILITIES & PURE FUNCTIONS
 // ============================================================================
 
-const getLocalToday = () => {
+const getLocalToday = (): string => {
   const d = new Date();
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
 };
 
-// OPTIMIZATION: HashMap creation for instant O(1) Telemetry lookups
-export const createTelemetryIndex = (sessions: TelemetrySession[]) => {
+const SPACING_STEPS = [1, 7, 15, 30, 60, 90];
+
+// Pure function for FSRS Spaced Repetition Logic
+const calculateNextFSRSInterval = (currentInterval: number, currentEF: number, rating: ReviewRating): { nextInterval: number, nextEF: number } => {
+  let nextInterval = 1;
+  let nextEF = currentEF;
+
+  if (rating === 'again') {
+    nextEF = Math.max(1.3, currentEF - 0.2);
+    nextInterval = 1;
+  } else if (rating === 'hard') {
+    nextEF = Math.max(1.3, currentEF - 0.15);
+    nextInterval = Math.max(1, Math.round(currentInterval * 1.2));
+  } else if (rating === 'good') {
+    nextInterval = Math.max(1, Math.round(currentInterval * currentEF));
+  } else if (rating === 'easy') {
+    nextEF = currentEF + 0.15;
+    nextInterval = Math.max(1, Math.round(currentInterval * currentEF * 1.3));
+  }
+  return { nextInterval, nextEF };
+};
+
+// O(1) Indexer for Telemetry Lookups
+export const createTelemetryIndex = (sessions: TelemetrySession[]): Record<string, TelemetrySession[]> => {
   const index: Record<string, TelemetrySession[]> = {};
   sessions.forEach(s => {
     const key = s.topicId ? `${s.subjectId}-${s.topicId}` : s.subjectId;
@@ -95,9 +132,9 @@ export const createTelemetryIndex = (sessions: TelemetrySession[]) => {
   return index;
 };
 
-// OPTIMIZATION: Refactored to use O(1) lookup via telemetryIndex
-export const getDueReviews = (subjects: Subject[], telemetryIndex: Record<string, TelemetrySession[]>, todayStr: string) => {
-  const list: any[] = [];
+// Review Engine Core Logic
+export const getDueReviews = (subjects: Subject[], telemetryIndex: Record<string, TelemetrySession[]>, todayStr: string): DueReview[] => {
+  const list: DueReview[] = [];
   const today = new Date(todayStr);
   
   subjects.forEach((sub) => {
@@ -123,7 +160,7 @@ export const getDueReviews = (subjects: Subject[], telemetryIndex: Record<string
       }
 
       let isDue = false;
-      let reviewType = '';
+      let reviewType: 'telemetry' | 'spaced' = 'spaced';
 
       const latestSessionDate = topicSessions.length > 0 ? topicSessions[0].date : null;
       const isHealthResolved = topic.lastReviewedAt && latestSessionDate && (new Date(topic.lastReviewedAt) >= new Date(latestSessionDate));
@@ -158,6 +195,7 @@ export const getDueReviews = (subjects: Subject[], telemetryIndex: Record<string
   });
 };
 
+// Custom Hook: Debounced LocalStorage
 function useLocalObject<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
@@ -169,7 +207,6 @@ function useLocalObject<T>(key: string, initialValue: T): [T, React.Dispatch<Rea
     }
   });
 
-  // OPTIMIZATION: Debounced localStorage save to prevent UI freezing on large datasets
   useEffect(() => {
     const handler = setTimeout(() => {
       window.localStorage.setItem(key, JSON.stringify(storedValue));
@@ -179,6 +216,10 @@ function useLocalObject<T>(key: string, initialValue: T): [T, React.Dispatch<Rea
 
   return [storedValue, setStoredValue];
 }
+
+// ============================================================================
+// 3. CONSTANTS & DICTIONARIES
+// ============================================================================
 
 const INITIAL_SUBJECTS: Subject[] = [
   { id: '1', name: 'Tax Law', color: 'bg-indigo-500', weight: 'High', topics: [] },
@@ -291,14 +332,14 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
     errorClassification: "Classificação de Erros", errA: "A - Falta de Conteúdo", errB: "B - Erro de Execução (Atenção)",
     errC: "C - Erro de Tempo (Pressa)", errD: "D - Erro de Interpretação (Leitura)", errE: "E - Bloqueio Cognitivo (Travou)",
     errF: "F - Fadiga (Cansaço)", errG: "G - Erro Estratégico (Insistência)", errH: "H - Erro de Revisão (Mudou gabarito)",
-    saveLog: "Salvar Registro", sumMismatch: "A soma das categorias deve ser igual ao total de erros!",
-    insights: "Recomendações e Alertas", noInsights: "Registre mais sessões para gerar prescrições precisas.",
-    recentLogs: "Últimos Registros", mins: "m", engineTitle: "Motor Adaptativo",
+    saveLog: "Salvar Registo", sumMismatch: "A soma das categorias deve ser igual ao total de erros!",
+    insights: "Recomendações e Alertas", noInsights: "Registe mais sessões para gerar prescrições precisas.",
+    recentLogs: "Últimos Registos", mins: "m", engineTitle: "Motor Adaptativo",
     dailyCapacity: "Capacidade Total Diária (Qtd. Questões)", volumeDistribution: "Distribuição de Questões",
     distEqual: "Igualitária", distWeighted: "Proporcional", distInterleaved: "Caos (Intercalado)",
     generateMission: "Gerar Plano de Hoje", activeMission: "Missão Ativa", missionCompleted: "Plano Diário Concluído!",
     missionCompletedDesc: "Concluiu todas as missões adaptativas de hoje. Excelente trabalho!",
-    mode: "Modo", focus: "Intenção", rule: "Regra de Execução", startMission: "Executar e Registrar",
+    mode: "Modo", focus: "Intenção", rule: "Regra de Execução", startMission: "Executar e Registar",
     missionModeExecution: "Controle de Execução", missionModeInterpretation: "Leitura Cautelosa",
     missionModeSpeed: "Choque de Velocidade", missionModeEndurance: "Resistência", missionModeContent: "Lacunas de Base",
     missionModeInterleaved: "Simulação de Caos", linkedMissionBanner: "🔥 Esta sessão será vinculada a uma Missão Ativa de hoje.",
@@ -355,11 +396,11 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
 };
 
 // ============================================================================
-// SHARED UI COMPONENTS
+// 4. SHARED UI COMPONENTS
 // ============================================================================
 
-const SpeedometerIcon = ({ level, className = "w-5 h-5" }: { level: 'High' | 'Medium' | 'Low', className?: string }) => {
-  const config = {
+const SpeedometerIcon = ({ level, className = "w-5 h-5" }: { level: IncidenceLevel, className?: string }) => {
+  const config: Record<IncidenceLevel, { rotate: number, color: string }> = {
     Low: { rotate: -60, color: 'text-sky-500 dark:text-sky-400' },
     Medium: { rotate: 0, color: 'text-amber-500 dark:text-amber-400' },
     High: { rotate: 60, color: 'text-rose-500 dark:text-rose-400' }
@@ -386,7 +427,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
 }
 
-const Button = ({ onClick, children, variant = 'primary', className = "", disabled = false, type = "button" }: ButtonProps) => {
+const Button = ({ onClick, children, variant = 'primary', className = "", disabled = false, type = "button", ...rest }: ButtonProps) => {
   const baseStyle = "px-4 py-2.5 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 touch-manipulation text-sm";
   const variants = {
     primary: "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 shadow-sm disabled:opacity-50",
@@ -395,7 +436,11 @@ const Button = ({ onClick, children, variant = 'primary', className = "", disabl
     ghost: "text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-zinc-800 disabled:opacity-50",
     success: "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 shadow-sm disabled:opacity-50"
   };
-  return <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`}>{children}</button>;
+  return (
+    <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`} {...rest}>
+      {children}
+    </button>
+  );
 };
 
 const Tooltip = ({ text, children, position = 'center' }: { text: string, children: React.ReactNode, position?: 'center' | 'left' | 'right' }) => {
@@ -413,7 +458,7 @@ const Tooltip = ({ text, children, position = 'center' }: { text: string, childr
 };
 
 // ============================================================================
-// FEATURE COMPONENTS
+// 5. FEATURE MODULES
 // ============================================================================
 
 interface BaseModuleProps {
@@ -432,7 +477,6 @@ interface DashboardProps extends BaseModuleProps {
 const Dashboard = ({ t, subjects, sessions, telemetryIndex, telemetrySessions, activeMissions, setActiveTab }: DashboardProps) => {
   const todayStr = getLocalToday();
 
-  // OPTIMIZATION: Uses telemetryIndex instead of iterating over array
   const dueReviewsCount = useMemo(() => {
     return getDueReviews(subjects, telemetryIndex, todayStr).length;
   }, [subjects, telemetryIndex, todayStr]);
@@ -465,7 +509,7 @@ const Dashboard = ({ t, subjects, sessions, telemetryIndex, telemetrySessions, a
   }, [telemetrySessions, sevenDaysAgo, subjects]);
 
   const bottlenecks = useMemo(() => {
-    const stats: Record<string, { q: number, c: number, subName: string, topName: string, incidence: string }> = {};
+    const stats: Record<string, { q: number, c: number, subName: string, topName: string, incidence: IncidenceLevel }> = {};
     telemetrySessions.forEach(s => {
        if (!s.topicId) return;
        const key = `${s.subjectId}-${s.topicId}`;
@@ -516,7 +560,6 @@ const Dashboard = ({ t, subjects, sessions, telemetryIndex, telemetrySessions, a
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20 md:pb-0">
       
-      {/* ZONE 1: Ação Imediata */}
       <section>
         <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-4 ml-1">{t.dashAction}</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -574,7 +617,6 @@ const Dashboard = ({ t, subjects, sessions, telemetryIndex, telemetrySessions, a
         </div>
       </section>
 
-      {/* ZONE 2: Métricas de Elite */}
       <section>
         <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-4 ml-1">{t.dashElite}</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -598,7 +640,6 @@ const Dashboard = ({ t, subjects, sessions, telemetryIndex, telemetrySessions, a
         </div>
       </section>
 
-      {/* ZONE 3: Radar de Gargalos */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
          <Card className="p-6">
             <h3 className="font-bold text-lg mb-6 text-gray-900 dark:text-gray-50 flex items-center gap-2">
@@ -610,7 +651,7 @@ const Dashboard = ({ t, subjects, sessions, telemetryIndex, telemetrySessions, a
                      <div key={i} className="p-4 bg-rose-50/50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30 rounded-xl flex items-center justify-between transition-all">
                         <div className="truncate pr-4 flex-1">
                            <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 mb-1.5 flex items-center gap-1">
-                              <SpeedometerIcon level={b.incidence as any} className="w-3.5 h-3.5" />
+                              <SpeedometerIcon level={b.incidence} className="w-3.5 h-3.5" />
                               Curva {b.incidence === 'High' ? 'A (Crítico)' : 'B (Atenção)'}
                            </span>
                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{b.subName}</p>
@@ -644,7 +685,6 @@ const Dashboard = ({ t, subjects, sessions, telemetryIndex, telemetrySessions, a
             </div>
          </Card>
       </section>
-
     </div>
   );
 };
@@ -655,15 +695,15 @@ interface SyllabusManagerProps extends BaseModuleProps {
 
 const SyllabusManager = ({ t, subjects, setSubjects }: SyllabusManagerProps) => {
   const [newSubjectName, setNewSubjectName] = useState('');
-  const [newSubjectWeight, setNewSubjectWeight] = useState<'High' | 'Medium' | 'Low'>('Medium');
+  const [newSubjectWeight, setNewSubjectWeight] = useState<SubjectWeight>('Medium');
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
   
   const [newTopicNames, setNewTopicNames] = useState<{[key: string]: string}>({});
-  const [newTopicIncidences, setNewTopicIncidences] = useState<{[key: string]: 'High' | 'Medium' | 'Low'}>({});
+  const [newTopicIncidences, setNewTopicIncidences] = useState<{[key: string]: IncidenceLevel}>({});
 
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
   const [editSubjectName, setEditSubjectName] = useState('');
-  const [editSubjectWeight, setEditSubjectWeight] = useState<'High' | 'Medium' | 'Low'>('Medium');
+  const [editSubjectWeight, setEditSubjectWeight] = useState<SubjectWeight>('Medium');
 
   const addSubject = () => {
     if (!newSubjectName.trim()) return;
@@ -679,7 +719,7 @@ const SyllabusManager = ({ t, subjects, setSubjects }: SyllabusManagerProps) => 
     setNewSubjectWeight('Medium');
   };
 
-  const getNextIncidence = (current: 'High' | 'Medium' | 'Low'): 'High' | 'Medium' | 'Low' => {
+  const getNextIncidence = (current: IncidenceLevel): IncidenceLevel => {
     if (current === 'Low') return 'Medium';
     if (current === 'Medium') return 'High';
     return 'Low';
@@ -697,7 +737,7 @@ const SyllabusManager = ({ t, subjects, setSubjects }: SyllabusManagerProps) => 
     setNewTopicIncidences({ ...newTopicIncidences, [subjectId]: 'Medium' });
   };
 
-  const changeTopicIncidence = (subjectId: string, topicId: string, newIncidence: 'High' | 'Medium' | 'Low') => {
+  const changeTopicIncidence = (subjectId: string, topicId: string, newIncidence: IncidenceLevel) => {
     setSubjects(subjects.map(sub => sub.id === subjectId ? {
       ...sub, topics: sub.topics.map(t => t.id === topicId ? { ...t, incidence: newIncidence } : t)
     } : sub));
@@ -776,8 +816,8 @@ const SyllabusManager = ({ t, subjects, setSubjects }: SyllabusManagerProps) => 
                   {editSubjectWeight === 'High' ? t.wHigh : editSubjectWeight === 'Low' ? t.wLow : t.wMedium}
                 </button>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <Button variant="ghost" onClick={(e: any) => { e.stopPropagation(); setEditingSubjectId(null); }} className="flex-1 sm:flex-none p-2.5"><X className="w-4 h-4" /></Button>
-                  <Button onClick={(e: any) => saveEditSubject(e, subject.id)} className="flex-1 sm:flex-none p-2.5"><Save className="w-4 h-4" /></Button>
+                  <Button variant="ghost" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setEditingSubjectId(null); }} className="flex-1 sm:flex-none p-2.5"><X className="w-4 h-4" /></Button>
+                  <Button onClick={(e: React.MouseEvent) => saveEditSubject(e, subject.id)} className="flex-1 sm:flex-none p-2.5"><Save className="w-4 h-4" /></Button>
                 </div>
               </div>
             ) : (
@@ -804,8 +844,8 @@ const SyllabusManager = ({ t, subjects, setSubjects }: SyllabusManagerProps) => 
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <Button variant="ghost" className="hover:text-indigo-600 dark:hover:text-indigo-500 p-2" onClick={(e: any) => startEditSubject(e, subject)}><Pencil className="w-5 h-5" /></Button>
-                  <Button variant="ghost" className="hover:text-rose-600 dark:hover:text-rose-500 p-2" onClick={(e: any) => { e.stopPropagation(); setSubjects(subjects.filter(s => s.id !== subject.id)); }}><Trash2 className="w-5 h-5" /></Button>
+                  <Button variant="ghost" className="hover:text-indigo-600 dark:hover:text-indigo-500 p-2" onClick={(e: React.MouseEvent) => startEditSubject(e, subject)}><Pencil className="w-5 h-5" /></Button>
+                  <Button variant="ghost" className="hover:text-rose-600 dark:hover:text-rose-500 p-2" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setSubjects(subjects.filter(s => s.id !== subject.id)); }}><Trash2 className="w-5 h-5" /></Button>
                   <div className="p-2 text-gray-400">
                     {expandedSubject === subject.id ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                   </div>
@@ -1020,7 +1060,7 @@ const TelemetryModule = ({ t, subjects, telemetrySessions, setTelemetrySessions,
 
   const [form, setForm] = useState({
     date: todayStr, subjectId: '', topicId: '', totalQs: '', correct: '', time: '',
-    difficulty: 'Medium' as 'Easy' | 'Medium' | 'Hard', fatigue: false, block: false,
+    difficulty: 'Medium' as DifficultyLevel, fatigue: false, block: false,
     errA: 0, errB: 0, errC: 0, errD: 0, errE: 0, errF: 0, errG: 0, errH: 0, notes: ''
   });
 
@@ -1416,7 +1456,7 @@ const AdaptiveTrainingModule = ({ t, subjects, sessions, telemetryIndex, telemet
     if (subjects.length === 0 || todayScheduledSessions.length === 0) return;
 
     const calculateMetrics = (sessionsData: TelemetrySession[], weightMult: number, incidenceMult: number) => {
-      if (sessionsData.length === 0) return { score: 50 * weightMult * incidenceMult, mode: 'Content' as const };
+      if (sessionsData.length === 0) return { score: 50 * weightMult * incidenceMult, mode: 'Content' as MissionMode };
       
       let tQ = 0, tC = 0, tTime = 0, errB = 0, errD = 0, errA = 0;
       sessionsData.forEach((s) => {
@@ -1438,7 +1478,7 @@ const AdaptiveTrainingModule = ({ t, subjects, sessions, telemetryIndex, telemet
 
       const score = weightMult * incidenceMult * (baseErrorScore + qualitativePenalty + timePenalty);
 
-      let mode: 'Execution' | 'Interpretation' | 'Speed' | 'Endurance' | 'Content' = 'Content';
+      let mode: MissionMode = 'Content';
       if (rateB > 0.25) mode = 'Execution';
       else if (rateD > 0.20) mode = 'Interpretation';
       else if (avgTime > 3.5) mode = 'Speed';
@@ -1461,7 +1501,6 @@ const AdaptiveTrainingModule = ({ t, subjects, sessions, telemetryIndex, telemet
       const weightMult = sub.weight === 'High' ? 1.5 : sub.weight === 'Low' ? 0.8 : 1.0;
       const incidenceMult = top?.incidence === 'High' ? 2.0 : top?.incidence === 'Low' ? 0.2 : 1.0;
 
-      // OPTIMIZATION: Instant lookups instead of .filter
       const targetSessions = telemetryIndex[`${target.subjectId}-${target.topicId}`] || [];
       const metrics = calculateMetrics(targetSessions, weightMult, incidenceMult);
 
@@ -1508,7 +1547,7 @@ const AdaptiveTrainingModule = ({ t, subjects, sessions, telemetryIndex, telemet
     setShowAbandonConfirm(false);
   };
 
-  const getModeInfo = (mode: string) => {
+  const getModeInfo = (mode: MissionMode) => {
     switch (mode) {
       case 'Execution': return { title: t.missionModeExecution, focus: "Evitar erro Tipo B (Atenção/Execução).", rule: "Não revise respostas. Marque e avance.", color: "text-amber-600 border-amber-200 dark:border-amber-500/30", bg: "bg-amber-50 dark:bg-amber-500/10" };
       case 'Interpretation': return { title: t.missionModeInterpretation, focus: "Atenção a pegadinhas (Erro Tipo D).", rule: "Leia a pergunta duas vezes. Sublinhe palavras absolutas (sempre, exceto).", color: "text-indigo-600 border-indigo-200 dark:border-indigo-500/30", bg: "bg-indigo-50 dark:bg-indigo-500/10" };
@@ -1559,10 +1598,10 @@ const AdaptiveTrainingModule = ({ t, subjects, sessions, telemetryIndex, telemet
                 <Info className="w-4 h-4 text-gray-400 hover:text-indigo-500 transition-colors" />
               </Tooltip>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 mb-2">
+            <div className="flex flex-wrap gap-2 mb-2">
                {['equal', 'weighted', 'interleaved'].map(mode => (
                  <button key={mode} onClick={() => setDistributionMode(mode as any)} disabled={todayMissions.length > 0} 
-                  className={`flex-1 py-2.5 px-3 text-sm font-medium rounded-xl border transition-all ${distributionMode === mode ? (mode === 'interleaved' ? 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-500/10 dark:text-fuchsia-400 dark:border-fuchsia-500/30 shadow-sm' : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30 shadow-sm') : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 dark:bg-zinc-900 dark:text-gray-400 dark:border-zinc-700 dark:hover:bg-zinc-800'} disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center`}>
+                  className={`flex-1 min-w-[110px] py-2.5 px-3 text-sm font-medium rounded-xl border transition-all ${distributionMode === mode ? (mode === 'interleaved' ? 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-500/10 dark:text-fuchsia-400 dark:border-fuchsia-500/30 shadow-sm' : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30 shadow-sm') : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 dark:bg-zinc-900 dark:text-gray-400 dark:border-zinc-700 dark:hover:bg-zinc-800'} disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center`}>
                    {mode === 'equal' ? t.distEqual : mode === 'weighted' ? t.distWeighted : <span className="flex items-center gap-1.5"><Shuffle className="w-3.5 h-3.5" /> Caos</span>}
                  </button>
                ))}
@@ -1697,31 +1736,11 @@ const ReviewModule = ({ t, subjects, setSubjects, telemetryIndex, setGoToTelemet
   const todayStr = getLocalToday();
   const [ratingMode, setRatingMode] = useState<string | null>(null);
 
-  // OPTIMIZATION: Uses telemetryIndex instead of iterating over array
   const dueReviews = useMemo(() => {
     return getDueReviews(subjects, telemetryIndex, todayStr);
   }, [subjects, telemetryIndex, todayStr]);
 
-  const calculateNextInterval = (currentInterval: number, currentEF: number, rating: 'again' | 'hard' | 'good' | 'easy') => {
-    let nextInterval = 1;
-    let nextEF = currentEF;
-
-    if (rating === 'again') {
-      nextEF = Math.max(1.3, currentEF - 0.2);
-      nextInterval = 1;
-    } else if (rating === 'hard') {
-      nextEF = Math.max(1.3, currentEF - 0.15);
-      nextInterval = Math.max(1, Math.round(currentInterval * 1.2));
-    } else if (rating === 'good') {
-      nextInterval = Math.max(1, Math.round(currentInterval * currentEF));
-    } else if (rating === 'easy') {
-      nextEF = currentEF + 0.15;
-      nextInterval = Math.max(1, Math.round(currentInterval * currentEF * 1.3));
-    }
-    return { nextInterval, nextEF };
-  };
-
-  const submitReview = useCallback((subjectId: string, topicId: string, rating: 'again' | 'hard' | 'good' | 'easy') => {
+  const submitReview = useCallback((subjectId: string, topicId: string, rating: ReviewRating) => {
     const todayLocal = getLocalToday();
     setSubjects(prev => prev.map(sub => {
       if (sub.id !== subjectId) return sub;
@@ -1729,7 +1748,7 @@ const ReviewModule = ({ t, subjects, setSubjects, telemetryIndex, setGoToTelemet
         ...sub,
         topics: sub.topics.map(t => {
           if (t.id !== topicId) return t;
-          const { nextInterval, nextEF } = calculateNextInterval(t.reviewInterval || 1, t.easeFactor || 2.5, rating);
+          const { nextInterval, nextEF } = calculateNextFSRSInterval(t.reviewInterval || 1, t.easeFactor || 2.5, rating);
           return { ...t, lastReviewedAt: todayLocal, reviewInterval: nextInterval, easeFactor: nextEF };
         })
       };
@@ -1792,7 +1811,7 @@ const ReviewModule = ({ t, subjects, setSubjects, telemetryIndex, setGoToTelemet
                   {ratingMode === `${item.sub.id}-${item.topic.id}` ? (
                     <div className="grid grid-cols-4 gap-2 mt-2 animate-in fade-in slide-in-from-top-1">
                       {(['again', 'hard', 'good', 'easy'] as const).map(rate => {
-                        const { nextInterval } = calculateNextInterval(item.interval, item.topic.easeFactor || 2.5, rate);
+                        const { nextInterval } = calculateNextFSRSInterval(item.interval, item.topic.easeFactor || 2.5, rate);
                         const labels: Record<string, string> = { again: t.revAgain, hard: t.revHard, good: t.revGood, easy: t.revEasy };
                         const variants: Record<string, any> = { again: 'danger', hard: 'secondary', good: 'primary', easy: 'success' };
                         return (
@@ -1824,7 +1843,7 @@ const ReviewModule = ({ t, subjects, setSubjects, telemetryIndex, setGoToTelemet
 };
 
 // ============================================================================
-// MAIN APP COMPONENT
+// 6. MAIN APP ENTRY POINT
 // ============================================================================
 
 export default function ElantariApp() {
@@ -1832,7 +1851,7 @@ export default function ElantariApp() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [telemetryPrefill, setTelemetryPrefill] = useState<{subjectId: string, topicId?: string} | null>(null);
   
-  // Storage Hooks
+  // Custom Hook Storage
   const [language, setLanguage] = useState<'en' | 'pt'>(() => (localStorage.getItem('fiscal_lang') as 'en' | 'pt') || 'pt');
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fiscal_theme') === 'dark');
   const [subjects, setSubjects] = useLocalObject<Subject[]>('fiscal_subjects', INITIAL_SUBJECTS);
@@ -1840,7 +1859,7 @@ export default function ElantariApp() {
   const [telemetrySessions, setTelemetrySessions] = useLocalObject<TelemetrySession[]>('fiscal_telemetry', []);
   const [activeMissions, setActiveMissions] = useLocalObject<TrainingMission[]>('fiscal_missions', []);
 
-  // OPTIMIZATION: Memoized Telemetry Index created at root level
+  // Centralized O(1) Index for Performance
   const telemetryIndex = useMemo(() => createTelemetryIndex(telemetrySessions), [telemetrySessions]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
